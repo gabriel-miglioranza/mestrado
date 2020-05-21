@@ -356,4 +356,70 @@ module adsorption_models
         delta(neq) = -yprime(neq) - (s+1.0_dp)*alfa*der1
        
     end subroutine
+
+    subroutine oc_mu(neq, t, y, yprime, cj, delta, ires, rpar, ipar)
+        integer, intent(in) :: neq
+        real(dp), intent(in) :: t
+        real(dp), intent(in), dimension(neq) :: y
+        real(dp), intent(in), dimension(neq) :: yprime
+        real(dp), intent(in) :: cj
+        real(dp), intent(out), dimension(neq) :: delta
+        integer, intent(in) :: ires
+        real(dp), intent(in), dimension(:) :: rpar
+        integer, intent(in), dimension(:) :: ipar
+        
+        real(dp) :: cb
+        real(dp) :: cp(1:n+2)
+        real(dp) :: der1, der2 
+        integer :: i
+
+        cp(2:n+1) = y(1+cc1:n+cc1)
+
+        
+        select case(cc1)
+        case(0)
+            write(*,*) 'cc1 = 0 is not available'
+            stop
+        case(1)
+            cp(1) = y(1)
+            ! condi��o alg�brica na superf�cie externa � resolvida a priori
+            select case(cc2)
+            case(0)
+                if (bi < 0.d0) then 
+                    cp(n+2) = cb
+                else
+                    cp(n+2) = (bi*cb - sum(A(n+2,1:n+1)*cp(1:n+1))) / ( A(n+2,n+2) + bi)
+                end if
+            case(1)
+                write(*,*) 'cc2 = 1 is not available'
+                stop
+            case default
+                write(*,*) 'ERROR: CC2 BAD ARGUMENT'
+                stop
+            end select
+            ! derivada segunda
+            ! Equa��o diferencial no centro
+            der1 = sum(A(1,1:n+2)*cp(1:n+2))
+            delta(1) = -yprime(1) +  2.d0*float(s+1)*der1
+        
+        case default
+            write(*,*) 'ERROR: CC1 BAD ARGUMENT'
+            stop
+        end select
+    
+    
+        ! condi��o de contorno no centro
+        ! derivada primeira
+        ! equa��es diferenciais nos pontos 1 a n
+        do i = 2, n+1
+            der1 = sum(A(i,1:n+2)*cp(1:n+2)) 
+            der2 = sum(B(i,1:n+2)*cp(1:n+2)) 
+            delta(i+cc1) = -yprime(i+cc1) + ( 4.d0*x(i)*der2 + 2.d0*float(s+1) * der1  )
+        end do
+    
+        der1 = sum(A(n+2,1:n+2)*cp(1:n+2)) 
+        delta(neq) = -yprime(neq) - (s+1.d0)*alfa* der1
+    
+        return
+    end subroutine oc_mu
 end module adsorption_models

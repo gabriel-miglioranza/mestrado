@@ -146,6 +146,8 @@ module simulation
                     call fd_mu_5pts(neq, t, y, yprime, cj, delta, ires, rpar, ipar)
                 case(5)
                     call oc_eta(neq, t, y, yprime, cj, delta, ires, rpar, ipar)
+                case(6)
+                    call oc_mu(neq, t, y, yprime, cj, delta, ires, rpar, ipar)
                 case default
                     write(*,*) 'MODEL ID: BAD ARGUMENT' 
             end select
