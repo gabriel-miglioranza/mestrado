@@ -8,7 +8,7 @@ module orthogonal_collocation
             integer, intent(in) :: number_of_points
             real(8), intent(out) :: collocation_points(number_of_points)  
             real(8) :: alpha(number_of_points), beta(number_of_points)
-            integer, parameter :: M = 150
+            integer, parameter :: M = 2048
             real(8) :: y_num(M+1)
             real(8) :: y_den(M+1)
             integer :: i, j
@@ -45,7 +45,7 @@ module orthogonal_collocation
             ! find collocation_points
             x_old = 0.d0
             do i = 1, number_of_points
-                x_old = x_old + 1.d0/float(2*number_of_points) 
+                x_old = x_old + 1.d0/float(number_of_points**2) 
                 summa = 0.d0
                 summa =  sum(1/(x_old - collocation_points(1:i-1)))
                 do
@@ -60,9 +60,8 @@ module orthogonal_collocation
                      number_of_points))
                     
                     eps = abs(x_new - x_old)
-
                     x_old = x_new
-                    if (eps < 1.d-10) exit
+                    if (sqrt(eps) < 1.d-8) exit
                 end do
                 collocation_points(i) = x_new
             end do
@@ -75,13 +74,16 @@ module orthogonal_collocation
                 weight = 1.
         end function weight
 
-        real(8) recursive function polynomial(j, x, alpha, beta, n) result(polynomial_j)
+        real(8) function polynomial(j, x, alpha, beta, n) result(polynomial_j)
             integer :: i 
             integer, intent(in) :: j
             integer, intent(in) :: n
             real(8), intent(in) :: x
             real(8), intent(in) :: alpha(n)
             real(8), intent(in) :: beta(n)
+
+            real(8), dimension(j+2) :: aux_array
+
             if (j == 0) then
                 polynomial_j = 1.d0
                 return
@@ -91,21 +93,29 @@ module orthogonal_collocation
                 polynomial_j = 0.d0
                 return
             end if
+            aux_array(1) = 0.0d0
+            aux_array(2) = 1.0d0
 
-            do i = 1, j
-                polynomial_j = (x + alpha(i))* polynomial(j-1, x, alpha, beta, n) &
-                + beta(i) * polynomial(j-2, x, alpha, beta, n)
+            do i= 3, j+2
+                aux_array(i) =  (x + alpha(i-2)) * aux_array(i-1) + beta(i-2) * aux_array(i-2)
             end do
+
+            polynomial_j = aux_array(j+2)
+                ! recursive version:
+                !polynomial_j = (x + alpha(j))* polynomial(j-1, x, alpha, beta, n) &
+                !+ beta(j) * polynomial(j-2, x, alpha, beta, n)
             return
         end function polynomial
 
-        real(8) recursive function d_polynomial(j, x, alpha, beta, n) result(d_polynomial_j)
+        real(8) function d_polynomial(j, x, alpha, beta, n) result(d_polynomial_j)
             integer :: i 
             integer, intent(in) :: j
             integer, intent(in) :: n
             real(8), intent(in) :: x
             real(8), intent(in) :: alpha(n)
             real(8), intent(in) :: beta(n)
+
+            real(8), dimension(j+1) :: aux_array
             if (j == 0 .or. j==-1 ) then
                 d_polynomial_j = 0.0d0
                 return
@@ -115,11 +125,18 @@ module orthogonal_collocation
                 return
             end if
 
-            do i = 1, j
-                d_polynomial_j = polynomial(j-1, x, alpha, beta, n) + (x + alpha(i))* &
-                d_polynomial(j-1, x, alpha, beta, n) + beta(i) &
-                * d_polynomial(j-2, x, alpha, beta, n)
+            aux_array(1) = 0.0d0 
+            aux_array(2) = 1.0d0
+
+            do i = 3, j+1
+                aux_array(i) = polynomial(i-2, x, alpha, beta, n) + (x + alpha(i-1))* aux_array(i-1) + beta(i-1) * aux_array(i-2)
             end do
+            
+            d_polynomial_j = aux_array(j+1)    
+            !recursive version:
+            !d_polynomial_j = polynomial(j-1, x, alpha, beta, n) + (x + alpha(j))* &
+            !d_polynomial(j-1, x, alpha, beta, n) + beta(j) &
+            !* d_polynomial(j-2, x, alpha, beta, n)
             return
         end function d_polynomial
 
