@@ -4,6 +4,9 @@ module simulation_parameters
     real(dp) :: dx
     real(dp) :: bi
     real(dp) :: alfa
+    real(dp), allocatable, dimension(:) :: x
+    real(dp), allocatable, dimension(:,:) :: a
+    real(dp), allocatable, dimension(:,:) :: b
     integer :: s
     integer :: n
     integer :: cc1

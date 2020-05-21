@@ -276,4 +276,84 @@ module adsorption_models
         delta(neq) = -yprime(neq) - (s+1)*alfa*2.d0*sqrt(1.d0)* der1
         return
     end subroutine fd_mu_5pts
+
+    subroutine oc_eta(neq, t, y, yprime, cj, delta, ires, rpar, ipar)
+        integer, intent(in) :: neq
+        real(dp), intent(in) :: t
+        real(dp), intent(in), dimension(neq) :: y
+        real(dp), intent(in), dimension(neq) :: yprime
+        real(dp), intent(in) :: cj
+        real(dp), intent(out), dimension(neq) :: delta
+        integer, intent(in) :: ires
+        real(dp), intent(in), dimension(:) :: rpar
+        integer, intent(in), dimension(:) :: ipar
+        
+        real(dp) :: cb
+        real(dp) :: cp(1:n+2)
+        real(dp) :: der1, der2 
+        integer :: i
+        
+        
+        cp(2:n+1) = y(1+cc1:n+cc1)
+        cb = y(neq)
+        ! define a concentra��o no ponto zero
+        select case(cc1)
+        case(0)
+            select case(cc2)
+            case(0)
+                if (bi < 0.d0) then 
+                    cp(n+1) = cb
+                else
+                    cp(n+2) = (bi*cb + sum((A(n+2,1) * A(1,2:n+1)/A(1,1) - A(n+2,2:n+1)) * cp(2:n+1))) /&
+                    (A(n+2,n+2) - A(n+2,1)*A(1,n+2)/A(1,1) + bi)
+                end if
+            case(1)
+                write(*,*) 'cc2 = 1  is not available'
+                stop
+            case default
+                write(*,*) 'ERROR: CC2 BAD ARGUMENT'
+                stop
+            end select
+            
+            cp(1) = - sum(A(1,2:n+2)*cp(2:n+2)) / A(1,1)
+        case(1)
+            cp(1) = y(1)
+            ! condi��o alg�brica na superf�cie externa � resolvida a priori
+            select case(cc2)
+            case(0)
+                if (bi < 0.d0) then 
+                    cp(n+2) = cb
+                else
+                    cp(n+2) = (bi*cb - sum(A(n+2,1:n+1)*cp(1:n+1))) / ( A(n+2,n+2) + bi)
+                end if
+            case(1)
+                write(*,*) 'cc2 = 1 is not available'
+                stop
+            case default
+                write(*,*) 'ERROR: CC2 BAD ARGUMENT'
+                stop
+            end select
+            
+            ! derivada segunda
+            der2 = sum(B(1,1:n+2)*cp(1:n+2))
+            
+            ! Equa��o diferencial no centro
+            delta(1) = -yprime(1) +  float(S+1)*der2
+        case default
+            write(*,*) 'ERROR: CC1 BAD ARGUMENT'
+            stop
+        end select
+        
+        
+        !   Equa��es diferenciais nos pontos 1 a n
+        do i = 2, n+1
+            der1 = sum(a(i,1:n+2)*cp(1:n+2)) 
+            der2 = sum(b(i,1:n+2)*cp(1:n+2)) 
+            delta(i+cc1) = -yprime(i+cc1) + (der2 + float(S)/(x(i)) * der1)
+        end do 
+        
+        der1 = sum(A(n+2,1:n+2)*cp(1:n+2))
+        delta(neq) = -yprime(neq) - (s+1.0_dp)*alfa*der1
+       
+    end subroutine
 end module adsorption_models
