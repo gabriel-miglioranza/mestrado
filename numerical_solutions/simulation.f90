@@ -2,8 +2,54 @@ module simulation
     use adsorption_models
     use types
     use simulation_parameters
+    use orthogonal_collocation
     implicit none
     contains
+        subroutine batch_adsorption
+            integer :: neq
+            real(dp), allocatable, dimension(:) :: y
+            real(dp) :: t0, tf
+            real(dp), allocatable, dimension(:) :: atol, rtol
+            real(dp), allocatable, dimension(:) :: collocation_points
+            integer, dimension(10) :: ipar
+            real(dp), dimension(10) :: rpar 
+            external jac, psol
+            model_id = 5
+            bi = 1.0_dp
+            alfa = 1.0_dp
+            cc1 = 0
+            cc2 = 0
+            s = 2 
+            n = 4
+            dx = 1.0_dp/real(n + 1, dp)
+            neq = n + 1 + cc1 + cc2
+            
+            allocate(y(neq), atol(neq), rtol(neq))
+        
+            t0 = 0.0_dp
+            tf = 1.0_dp
+            rtol = 1.0e-6_dp
+            atol = 1.0e-6_dp
+            rpar = 0.0_dp
+            ipar = 0
+        
+            y = 0.0_dp
+            y(neq) = 1.0_dp
+            
+            if (model_id == 5) then
+                allocate(collocation_points(n))
+                call find_collocation_points(collocation_points, n)
+                allocate(x(n+2))
+                x(1) = 0.0_dp
+                x(2:n+1) = collocation_points
+                x(n+2) = 1.0_dp
+                allocate(a(n+2, n+2), b(n+2, n+2))
+                call compute_matrix_a(a, x, n+2)
+                call compute_matrix_b(b, x, n+2)
+            end if
+            call ddaspk_integration(model, neq, y, t0, tf, rtol, atol, rpar, ipar, jac, psol)
+        end subroutine
+
         subroutine ddaspk_integration(model, neq, y, t0, tf, rtol, atol, rpar, ipar, jac, psol)
             integer, intent(in) :: neq !number of equations
             integer, intent(in), dimension(:) :: ipar !integer parameters used in res
@@ -98,6 +144,10 @@ module simulation
                     call fd_mu_3pts(neq, t, y, yprime, cj, delta, ires, rpar, ipar)
                 case(4)
                     call fd_mu_5pts(neq, t, y, yprime, cj, delta, ires, rpar, ipar)
+                case(5)
+                    call oc_eta(neq, t, y, yprime, cj, delta, ires, rpar, ipar)
+                case(6)
+                    call oc_mu(neq, t, y, yprime, cj, delta, ires, rpar, ipar)
                 case default
                     write(*,*) 'MODEL ID: BAD ARGUMENT' 
             end select

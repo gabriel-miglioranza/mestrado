@@ -8,7 +8,7 @@ module orthogonal_collocation
             integer, intent(in) :: number_of_points
             real(8), intent(out) :: collocation_points(number_of_points)  
             real(8) :: alpha(number_of_points), beta(number_of_points)
-            integer, parameter :: M = 2048
+            integer, parameter :: M = 1024
             real(8) :: y_num(M+1)
             real(8) :: y_den(M+1)
             integer :: i, j
