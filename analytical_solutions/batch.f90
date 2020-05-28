@@ -47,7 +47,7 @@ subroutine finite_batch_particle(u, x, t, bi, a, s, eps)
 
             g_old = g 
             u = u + term
-            !if (term < eps) exit
+            if (sqrt(abs(term)) < eps) exit
         end do
     end if
     return
@@ -86,7 +86,7 @@ subroutine finite_batch_bulk(v, t, bi, a, s, eps)
             
             g_old = g 
             v = v + term
-            if (term < eps) exit
+            if (abs(term) < eps) exit
         end do
     end if
     return
@@ -105,7 +105,7 @@ subroutine root_calc(g, g_old, bi, a, s, eps)
     ! Newton-Raphson Method
     b = g_old
     do  
-        c = b + 0.1
+        c = b + 0.01
         if (f(b, bi, a, s)*f(c, bi, a, s) < 0) exit
         b = c
     end do
