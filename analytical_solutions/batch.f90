@@ -13,27 +13,50 @@ subroutine finite_batch_particle(u, x, t, bi, a, s, eps)
 
 !f2py intent(in) x, t, bi, a, eps, s
 !f2py intent(out) u 
-
+    real(8), parameter :: PI = 4.0d0*atan(1.d0)
     real(8) :: g, g_old, bn, term, nu
-    integer :: n, i
+    integer :: n
 
     if (t==0) then
         u = 0.
+        return
     else
         nu = float(s-1)/2.0
         u = 1.0/(1.0 + a)
-        g_old = 0.1
         g = 0
         do n = 1, 100
-            i = 1
-            do while (g_old >= g) 
-                    g_old = g + float(i)*0.1
+            g_old = g
+            if (bi>0 .or. a>0) then
+                do while(g_old >= g)
+                    g_old = g_old + 0.1
                     call root_calc(g, g_old, bi, a, s, eps)
-            end do
-
-            bn = 2.*bi*(2.*(nu+1.)*a*bi - g**2)/(g**4 + g**2*bi*& 
-            (bi-4.*a*(nu+1.) - 2.*nu) + 4.*a*(1. + a)*bi**2*(nu + 1.)**2)
-
+                end do
+                if (a == 0) then
+                    bn = -2.*bi/(g**2 + bi*(bi - 2.*nu))
+                else if (bi == -1) then
+                    bn = 4.*(nu+1.)*a/(g**2 + 4.*a*(1+a)*(1+nu)**2)
+                else if (a > 0 .and. bi > 0) then
+                    bn = 2.*bi*(2.*(nu+1.)*a*bi - g**2)/(g**4 + g**2*bi*& 
+                (bi-4.*a*(nu+1.) - 2.*nu) + 4.*a*(1. + a)*bi**2*(nu + 1.)**2)
+                end if
+            else if (bi == -1 .and. a == 0) then
+                select case(s)
+                case(0)
+                    g = (2*n-1)*PI/2
+                case(1)
+                    do while (g_old>=g)
+                        g_old = g_old + 0.1
+                    call root_calc(g, g_old, bi, a, s, eps)
+                    end do
+                case(2)
+                    g = n*PI
+                case default
+                return
+                end select
+                    bn = -2*((-1)**(s+1))**(n+1)/g
+            else
+                return
+            end if
             select case(s)
             case(0)
                 term = bn * cos(g*x)/cos(g) * exp(-g**2 * t)        
@@ -45,7 +68,6 @@ subroutine finite_batch_particle(u, x, t, bi, a, s, eps)
                 return
             end select
 
-            g_old = g 
             u = u + term
             if (sqrt(abs(term)) < eps) exit
         end do
@@ -63,32 +85,35 @@ subroutine finite_batch_bulk(v, t, bi, a, s, eps)
 !f2py intent(out) v
 
     real(8) :: g, g_old, cn, term, nu
-    integer :: n, i  
-
+    integer :: n
        
-    if (t==0) then
+    if (t==0 .or. a==0) then
         v = 1.
     else
         nu = float(s-1)/2.0
-        g_old = 0.1
         g = 0
         v = 1.0/(1.0 + a)
         do n = 1, 100
-            i = 1
-            do while (g_old >= g) 
-                    g_old = g + float(i)*0.1
-                    call root_calc(g, g_old, bi, a, s, eps)
+            g_old = g
+            do while(g_old >= g)
+                g_old = g + 0.1 
+                call root_calc(g, g_old, bi, a, s, eps)
             end do
-            cn = 4.*(nu+1.)*a* bi**2 /(g**4 + g**2*bi*(bi-4.*a*(nu+1.) &
+            if (bi == -1) then 
+                cn = 4.*(nu+1)*a/(g**2 + 4.*a*(1+a)*(nu+1)**2)
+            else
+                cn = 4.*(nu+1.)*a* bi**2 /(g**4 + g**2*bi*(bi-4.*a*(nu+1.) &
             - 2.*nu) + 4.*a*(1. + a)*bi**2*(nu + 1.)**2)
+            end if
             
             term = cn * exp(-g**2 * t)
             
-            g_old = g 
+            g_old = g
             v = v + term
             if (abs(term) < eps) exit
         end do
     end if
+
     return
 end subroutine finite_batch_bulk
 
@@ -123,16 +148,47 @@ real(8) function f(g, bi, a, s)
     integer, intent(in) :: s
 !f2py intent(in) bi, a, g, s
 !f2py intent(out) f
-    select case(s)
-    case(0)
-        f = (g**2 - a*bi)*sin(g) - g*bi*cos(g)
-    case(1)
-        f = (g**2 - 2.*a*bi)*bessel_j1(g) - g*bi*bessel_j0(g)
-    case(2)
-        f = (3.*a*bi/g + g*(bi-1.))*sin(g)+(g**2-3*a*bi)*cos(g)
-    case default
+    if (a>0 .and. bi>0) then
+        select case(s)
+        case(0)
+            f = (g**2 - a*bi)*sin(g) - g*bi*cos(g)
+        case(1)
+            f = (g**2 - 2.*a*bi)*bessel_j1(g) - g*bi*bessel_j0(g)
+        case(2)
+            f = (3.*a*bi/g + g*(bi-1.))*sin(g)+(g**2-3*a*bi)*cos(g)
+        case default
+            return
+        end select
+    
+    else if(bi==-1) then
+        select case(s)
+        case(0)
+            f = a*tan(g) + g
+        case(1)
+            f = 2.*a*bessel_j1(g) + g*bessel_j0(g)
+        case(2)
+            f = a*(3 - 3/g**2)*sin(g) + (3*a/g + g)*cos(g) + sin(g)
+        case default
+            return
+        end select
+
+    else if (a==0) then        
+        select case(s)
+        case(0)
+            f = g*tan(g) - bi
+        case(1)
+            f = g*bessel_j1(g) - bi*bessel_j1(g)
+        case(2)
+            f = g + (bi + 1)*tan(g)
+        case default
+            return
+        end select
+ 
+    else if (a==0 .and. bi==-1 .and. s==1) then
+        f = bessel_j0(g)
+    else
         return
-    end select
+    end if
 end function
 
 real(8) function df(g, bi, a, s)
@@ -140,18 +196,50 @@ real(8) function df(g, bi, a, s)
     integer, intent(in) :: s
 !f2py intent(in) bi, a, g, s
 !f2py intent(out) df
-    select case(s)
-    case(0)
-        df = g*(bi + a)*sin(g) + (g**2 - a + bi)*cos(g)
-    case(1)
-        df = (g**2 - bi*(1 + 2.*a))*bessel_j0(g) + (g - 2.*a*bi/g &
-        + g*bi)*bessel_j1(g)
-    case(2)
-        df = (bi-1.-3.*a*bi/g**2-g**2 + 3.*a*bi)*sin(g)+ & 
-        (3.*a*bi/g + g*bi + g)*cos(g)
-    case default
+    if (a>0 .and. bi>0) then
+        select case(s)
+        case(0)
+            df = g*(bi + a)*sin(g) + (g**2 - a + bi)*cos(g)
+        case(1)
+            df = (g**2 - bi*(1 + 2.*a))*bessel_j0(g) + (g - 2.*a*bi/g &
+            + g*bi)*bessel_j1(g)
+        case(2)
+            df = (bi-1.-3.*a*bi/g**2-g**2 + 3.*a*bi)*sin(g)+ & 
+            (3.*a*bi/g + g*bi + g)*cos(g)
+        case default
+            return
+        end select
+
+    else if (bi == -1) then
+        select case(s)
+        case(0)
+            df = 1 + a/(sin(g)**2)
+        case(1)
+            df = (2.*a + 1)*bessel_j0(g) - (g**2 + 2.*a)/g*bessel_j1(g)
+        case(2)
+            df = (bi-1.-3.*a*bi/g**2-g**2 + 3.*a*bi)*sin(g)+ & 
+            (3.*a*bi/g + g*bi + g)*cos(g)
+        case default
+            return
+        end select
+
+    else if (a==0) then        
+        select case(s)
+        case(0)
+            df = tan(g) + g/(cos(g)**2)
+        case(1)
+            df = g*bessel_j0(g) + bi*bessel_j1(g)
+        case(2)
+            df = 1 + (bi - 1)/(sin(g)**2)
+        case default
+            return
+        end select
+
+    else if (a==0 .and. bi==-1 .and. s==1) then
+        df = -bessel_j1(g)
+    else
         return
-    end select
+    end if
 end function 
 
 end module batch
