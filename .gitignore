@@ -1,2 +1,5 @@
 *.o
 *.mod
+
+*/.ipynb_checkpoints/
+*/__pycahe__/
