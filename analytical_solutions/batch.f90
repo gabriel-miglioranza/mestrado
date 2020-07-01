@@ -151,11 +151,11 @@ real(8) function f(g, bi, a, s)
     if (a>0 .and. bi>0) then
         select case(s)
         case(0)
-            f = (g**2 - a*bi)*sin(g) - g*bi*cos(g)
+            f = (1 - a*bi/g**2)*sin(g) - bi/g*cos(g)
         case(1)
-            f = (g**2 - 2.*a*bi)*bessel_j1(g) - g*bi*bessel_j0(g)
+            f = (1 - 2.*a*bi/g**2)*bessel_j1(g) - bi/g*bessel_j0(g)
         case(2)
-            f = (3.*a*bi/g + g*(bi-1.))*sin(g)+(g**2-3*a*bi)*cos(g)
+            f = (3*a*bi/g**3 + (bi-1)/g)*sin(g) + (1 - 3*a*bi/g**2)*cos(g)
         case default
             return
         end select
@@ -163,11 +163,11 @@ real(8) function f(g, bi, a, s)
     else if(bi==-1) then
         select case(s)
         case(0)
-            f = a*tan(g) + g
+            f = a/g*sin(g) + cos(g)
         case(1)
             f = 2.*a*bessel_j1(g) + g*bessel_j0(g)
         case(2)
-            f = a*(3 - 3/g**2)*sin(g) + (3*a/g + g)*cos(g) + sin(g)
+            f = 3*a*(cos(g)/g - sin(g)/g**2)
         case default
             return
         end select
@@ -199,13 +199,12 @@ real(8) function df(g, bi, a, s)
     if (a>0 .and. bi>0) then
         select case(s)
         case(0)
-            df = g*(bi + a)*sin(g) + (g**2 - a + bi)*cos(g)
+            df = (bi/g + 2*a*bi/g**3)*sin(g) + (1+bi*(1-a)/g**2)*cos(g)
         case(1)
-            df = (g**2 - bi*(1 + 2.*a))*bessel_j0(g) + (g - 2.*a*bi/g &
-            + g*bi)*bessel_j1(g)
+            df = (1-2*a*bi/g**2)*(bessel_j0(g)-bessel_j1(g)/g) + &
+                (4*a*bi/g**3 + bi/g)*bessel_j1(g) + bi/g**2 *bessel_j0(g)
         case(2)
-            df = (bi-1.-3.*a*bi/g**2-g**2 + 3.*a*bi)*sin(g)+ & 
-            (3.*a*bi/g + g*bi + g)*cos(g)
+            df = (-9*a*bi/g**4 + (3*a*bi-bi+1)/g**2 - 1)*sin(g)+(9*a*bi/g**3 + (bi-1)/g)*cos(g)            
         case default
             return
         end select
@@ -213,12 +212,11 @@ real(8) function df(g, bi, a, s)
     else if (bi == -1) then
         select case(s)
         case(0)
-            df = 1 + a/(sin(g)**2)
+            df = a/g*cos(g) - (1+a/g**2)*sin(g)
         case(1)
             df = (2.*a + 1)*bessel_j0(g) - (g**2 + 2.*a)/g*bessel_j1(g)
         case(2)
-            df = (bi-1.-3.*a*bi/g**2-g**2 + 3.*a*bi)*sin(g)+ & 
-            (3.*a*bi/g + g*bi + g)*cos(g)
+            df = 3*a*(-2*cos(g)/g +(2/g**3 - 1/g)*sin(g))
         case default
             return
         end select
