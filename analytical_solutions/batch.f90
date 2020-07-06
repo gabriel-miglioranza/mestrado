@@ -1,43 +1,39 @@
-! file: batch.f90
-
 ! Solutions for the Diffusion differential equation
 module batch
 implicit none
-public finite_batch_particle, finite_batch_bulk, root_calc, f, df
-contains
-subroutine finite_batch_particle(u, x, t, bi, a, s, eps)
-    implicit none
-    real(8), intent(in) :: x, t, bi, a, eps 
-    integer, intent(in) :: s 
-    real(8), intent(out) :: u
+public batch_particle, batch_bulk, root_calc, f, df
+integer, parameter :: dp = kind(1.d0)
 
-!f2py intent(in) x, t, bi, a, eps, s
-!f2py intent(out) u 
-    real(8), parameter :: PI = 4.0d0*atan(1.d0)
-    real(8) :: g, g_old, bn, term, nu
+contains
+subroutine batch_particle_average(t, u, bi, a, s, eps)
+    real(dp), intent(in) :: t(:)
+    real(dp), intent(out) :: u(size(t))
+    real(dp), intent(in) :: bi, a
+    integer, intent(in) :: s
+    real(dp), intent(in) :: eps
+
+    real(dp), parameter :: PI = 4.0d0*atan(1.d0)
+    real(dp) :: g, g_old, bn, nu
+    real(dp) :: term(size(t))
     integer :: n
 
-    if (t==0) then
-        u = 0.
-        return
-    else
-        nu = float(s-1)/2.0
-        u = 1.0/(1.0 + a)
+        nu = real(s-1, dp)/2.0_dp
+        u = 1.0_dp/(1.0_dp + a)
         g = 0
         do n = 1, 100
             g_old = g
             if (bi>0 .or. a>0) then
                 do while(g_old >= g)
-                    g_old = g_old + 0.1
+                    g_old = g_old + 0.1_dp
                     call root_calc(g, g_old, bi, a, s, eps)
                 end do
                 if (a == 0) then
-                    bn = -2.*bi/(g**2 + bi*(bi - 2.*nu))
+                    bn = -2*bi/(g**2 + bi*(bi - 2*nu))
                 else if (bi == -1) then
-                    bn = 4.*(nu+1.)*a/(g**2 + 4.*a*(1+a)*(1+nu)**2)
+                    bn = 4*(nu+1)*a/(g**2 + 4*a*(1+a)*(1+nu)**2)
                 else if (a > 0 .and. bi > 0) then
-                    bn = 2.*bi*(2.*(nu+1.)*a*bi - g**2)/(g**4 + g**2*bi*& 
-                (bi-4.*a*(nu+1.) - 2.*nu) + 4.*a*(1. + a)*bi**2*(nu + 1.)**2)
+                    bn = 2*bi*(2*(nu+1)*a*bi - g**2)/(g**4 + g**2*bi*& 
+                (bi-4*a*(nu+1) - 2*nu) + 4*a*(1 + a)*bi**2*(nu + 1)**2)
                 end if
             else if (bi == -1 .and. a == 0) then
                 select case(s)
@@ -45,7 +41,7 @@ subroutine finite_batch_particle(u, x, t, bi, a, s, eps)
                     g = (2*n-1)*PI/2
                 case(1)
                     do while (g_old>=g)
-                        g_old = g_old + 0.1
+                        g_old = g_old + 0.1_dp
                     call root_calc(g, g_old, bi, a, s, eps)
                     end do
                 case(2)
@@ -53,84 +49,160 @@ subroutine finite_batch_particle(u, x, t, bi, a, s, eps)
                 case default
                 return
                 end select
-                    bn = -2*((-1)**(s+1))**(n+1)/g
+                    bn = real(-2*((-1)**(s+1))**(n+1), dp)/g
             else
                 return
             end if
+
             select case(s)
             case(0)
-                term = bn * cos(g*x)/cos(g) * exp(-g**2 * t)        
+                term = bn * tan(g)/g * exp(-g**2 * t)        
             case(1) 
-                term =  bn * bessel_j0(g*x)/bessel_j0(g) * exp(-g**2 * t)
+                term =  bn * 1.0_dp/g * bessel_j1(g)/bessel_j0(g) * exp(-g**2 * t)
             case(2)
-                term = bn * sin(g*x)/(x*sin(g)) * exp(-g**2 * t)
+                term = bn * 1.0_dp/g * (1.0_dp/g - 1.0_dp/tan(g)) * exp(-g**2 * t)
             case default
                 return
             end select
 
             u = u + term
-            if (sqrt(abs(term)) < eps) exit
+            if (sqrt(maxval(abs(term))) < eps) exit
         end do
-    end if
-    return
-end subroutine finite_batch_particle
 
-subroutine finite_batch_bulk(v, t, bi, a, s, eps)
-    implicit none
-    real(8), intent(in) :: t, bi, a, eps 
+end subroutine batch_particle_average
+
+subroutine batch_particle(x, t, u, bi, a, s, eps)
+    real(dp), intent(in) :: x(:) 
+    real(dp), intent(in) :: t (:)
+    real(dp), intent(out) :: u(size(x), size(t))
+    real(dp), intent(in) :: bi, a 
     integer, intent(in) :: s 
-    real(8), intent(out) :: v
+    real(dp), intent(in) :: eps 
 
-!f2py intent(in) t, bi, eps, s
-!f2py intent(out) v
+    real(dp), parameter :: PI = 4.0d0*atan(1.d0)
+    real(dp) :: g, g_old, bn, nu
+    real(dp) :: term(size(x))
+    integer :: n, i 
 
-    real(8) :: g, g_old, cn, term, nu
+        nu = real(s-1, dp)/2.0_dp
+        u = 1.0_dp/(1.0_dp + a)
+        g = 0
+
+        do n = 1, 100
+            g_old = g
+            if (bi>0 .or. a>0) then
+                do while(g_old >= g)
+                    g_old = g_old + 0.1_dp
+                    call root_calc(g, g_old, bi, a, s, eps)
+                end do
+
+                if (a == 0) then
+                    bn = -2*bi/(g**2 + bi*(bi - 2*nu))
+                else if (bi == -1) then
+                    bn = 4*(nu+1)*a/(g**2 + 4*a*(1+a)*(1+nu)**2)
+                else if (a > 0 .and. bi > 0) then
+                    bn = 2*bi*(2*(nu+1)*a*bi - g**2)/(g**4 + g**2*bi*& 
+                    (bi-4*a*(nu+1) - 2*nu) + 4*a*(1 + a)*bi**2*(nu + 1)**2)
+                end if
+
+            else if (bi == -1 .and. a == 0) then
+                    select case(s)
+                case(0)
+                    g = (2*n-1)*PI/2
+                case(1)
+                    do while (g_old>=g)
+                        g_old = g_old + 0.1_dp
+                    call root_calc(g, g_old, bi, a, s, eps)
+                    end do
+                case(2)
+                    g = n*PI
+                case default
+                return
+                end select
+
+                bn = real(-2*((-1)**(s+1))**(n+1), dp)/g
+            else
+                return
+            end if
+
+            do i = 1, size(t)
+                if (t(i)==0) then
+                    u(:,i) = 0
+                    term = 0
+                else
+                    select case(s)
+                    case(0)
+                        term = bn * cos(g*x)/cos(g) * exp(-g**2 * t(i))        
+                    case(1) 
+                        term =  bn * bessel_j0(g*x)/bessel_j0(g) * exp(-g**2 * t(i))
+                    case(2)
+                        where(x/=0)
+                            term = bn * sin(g*x)/(x*sin(g)) * exp(-g**2 * t(i))
+                        elsewhere (x==0)
+                            term = bn * sin(g*(x+1.0e-6_dp))/((1.0e-6_dp)*sin(g)) * exp(-g**2 * t(i))
+                        endwhere
+                    case default
+                        return
+                    end select
+
+                    u(:,i) = u(:,i) + term
+                end if
+            end do
+
+        if (sqrt(maxval(abs(term))) < eps) exit
+        end do
+    return
+end subroutine batch_particle
+
+subroutine batch_bulk(t, v, bi, a, s, eps)
+    real(dp), intent(in) :: t(:) 
+    real(dp), intent(out) :: v(size(t))
+    real(dp), intent(in) :: bi, a 
+    integer, intent(in) :: s 
+    real(dp), intent(in) :: eps 
+
+    real(dp) :: term(size(t))
+    real(dp) :: g, g_old, cn, nu
     integer :: n
        
-    if (t==0 .or. a==0) then
-        v = 1.
+    if (a==0) then
+        v = 1
     else
         nu = float(s-1)/2.0
         g = 0
-        v = 1.0/(1.0 + a)
+        v = 1.0_dp/(1.0_dp + a)
         do n = 1, 100
             g_old = g
             do while(g_old >= g)
-                g_old = g + 0.1 
+                g_old = g + 0.1_dp 
                 call root_calc(g, g_old, bi, a, s, eps)
             end do
             if (bi == -1) then 
-                cn = 4.*(nu+1)*a/(g**2 + 4.*a*(1+a)*(nu+1)**2)
+                cn = 4*(nu+1)*a/(g**2 + 4*a*(1+a)*(nu+1)**2)
             else
                 cn = 4.*(nu+1.)*a* bi**2 /(g**4 + g**2*bi*(bi-4.*a*(nu+1.) &
             - 2.*nu) + 4.*a*(1. + a)*bi**2*(nu + 1.)**2)
             end if
             
             term = cn * exp(-g**2 * t)
-            
-            g_old = g
             v = v + term
-            if (abs(term) < eps) exit
+            if (maxval(abs(term)) < eps) exit
         end do
     end if
 
     return
-end subroutine finite_batch_bulk
+end subroutine batch_bulk
 
 subroutine root_calc(g, g_old, bi, a, s, eps)
-    implicit none
-    real(8), intent(in) :: bi, a, eps, g_old
+    real(dp), intent(in) :: bi, a, eps, g_old
     integer, intent(in) :: s
-    real(8), intent(out) :: g
+    real(dp), intent(out) :: g
 
-!f2py intent(in) bi, a, err, g_old, s
-!f2py intent(out) g
-
-    real(8) :: del, b, c
+    real(dp) :: del, b, c
     ! Newton-Raphson Method
     b = g_old
     do  
-        c = b + 0.01
+        c = b + 0.01_dp
         if (f(b, bi, a, s)*f(c, bi, a, s) < 0) exit
         b = c
     end do
@@ -143,11 +215,10 @@ subroutine root_calc(g, g_old, bi, a, s, eps)
     return
 end subroutine root_calc
 
-real(8) function f(g, bi, a, s)
-    real(8), intent(in) :: bi, a, g
+real(dp) function f(g, bi, a, s)
+    real(dp), intent(in) :: bi, a, g
     integer, intent(in) :: s
-!f2py intent(in) bi, a, g, s
-!f2py intent(out) f
+
     if (a>0 .and. bi>0) then
         select case(s)
         case(0)
@@ -191,11 +262,10 @@ real(8) function f(g, bi, a, s)
     end if
 end function
 
-real(8) function df(g, bi, a, s)
-    real(8), intent(in) :: bi, a, g
+real(dp) function df(g, bi, a, s)
+    real(dp), intent(in) :: bi, a, g
     integer, intent(in) :: s
-!f2py intent(in) bi, a, g, s
-!f2py intent(out) df
+
     if (a>0 .and. bi>0) then
         select case(s)
         case(0)
@@ -214,7 +284,7 @@ real(8) function df(g, bi, a, s)
         case(0)
             df = a/g*cos(g) - (1+a/g**2)*sin(g)
         case(1)
-            df = (2.*a + 1)*bessel_j0(g) - (g**2 + 2.*a)/g*bessel_j1(g)
+            df = (2*a + 1)*bessel_j0(g) - (g**2 + 2*a)/g*bessel_j1(g)
         case(2)
             df = 3*a*(-2*cos(g)/g +(2/g**3 - 1/g)*sin(g))
         case default
@@ -241,4 +311,3 @@ real(8) function df(g, bi, a, s)
 end function 
 
 end module batch
-!end file batch.f90
