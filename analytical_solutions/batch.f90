@@ -1,17 +1,15 @@
 ! Solutions for the Diffusion differential equation
 module batch
 implicit none
-public batch_particle, batch_bulk, root_calc, f, df
 integer, parameter :: dp = kind(1.d0)
-
 contains
-subroutine batch_particle_average(t, u, bi, a, s, eps)
+function batch_particle_average(t, bi, a, s, eps) result(u) 
     real(dp), intent(in) :: t(:)
-    real(dp), intent(out) :: u(size(t))
     real(dp), intent(in) :: bi, a
     integer, intent(in) :: s
     real(dp), intent(in) :: eps
-
+    
+    real(dp) :: u(size(t))
     real(dp), parameter :: PI = 4.0d0*atan(1.d0)
     real(dp) :: g, g_old, bn, nu
     real(dp) :: term(size(t))
@@ -23,10 +21,7 @@ subroutine batch_particle_average(t, u, bi, a, s, eps)
         do n = 1, 100
             g_old = g
             if (bi>0 .or. a>0) then
-                do while(g_old >= g)
-                    g_old = g_old + 0.1_dp
-                    call root_calc(g, g_old, bi, a, s, eps)
-                end do
+                g = next_root(g_old, bi, a, s, eps)
                 if (a == 0) then
                     bn = -2*bi/(g**2 + bi*(bi - 2*nu))
                 else if (bi == -1) then
@@ -40,10 +35,7 @@ subroutine batch_particle_average(t, u, bi, a, s, eps)
                 case(0)
                     g = (2*n-1)*PI/2
                 case(1)
-                    do while (g_old>=g)
-                        g_old = g_old + 0.1_dp
-                    call root_calc(g, g_old, bi, a, s, eps)
-                    end do
+                    g = next_root(g_old, bi, a, s, eps)
                 case(2)
                     g = n*PI
                 case default
@@ -69,16 +61,16 @@ subroutine batch_particle_average(t, u, bi, a, s, eps)
             if (sqrt(maxval(abs(term))) < eps) exit
         end do
 
-end subroutine batch_particle_average
+end function batch_particle_average
 
-subroutine batch_particle(x, t, u, bi, a, s, eps)
+function batch_particle(x, t, bi, a, s, eps) result(u)
     real(dp), intent(in) :: x(:) 
     real(dp), intent(in) :: t (:)
-    real(dp), intent(out) :: u(size(x), size(t))
     real(dp), intent(in) :: bi, a 
     integer, intent(in) :: s 
     real(dp), intent(in) :: eps 
-
+    
+    real(dp) :: u(size(x), size(t))
     real(dp), parameter :: PI = 4.0d0*atan(1.d0)
     real(dp) :: g, g_old, bn, nu
     real(dp) :: term(size(x))
@@ -91,11 +83,7 @@ subroutine batch_particle(x, t, u, bi, a, s, eps)
         do n = 1, 100
             g_old = g
             if (bi>0 .or. a>0) then
-                do while(g_old >= g)
-                    g_old = g_old + 0.1_dp
-                    call root_calc(g, g_old, bi, a, s, eps)
-                end do
-
+                g = next_root(g_old, bi, a, s, eps)
                 if (a == 0) then
                     bn = -2*bi/(g**2 + bi*(bi - 2*nu))
                 else if (bi == -1) then
@@ -110,10 +98,7 @@ subroutine batch_particle(x, t, u, bi, a, s, eps)
                 case(0)
                     g = (2*n-1)*PI/2
                 case(1)
-                    do while (g_old>=g)
-                        g_old = g_old + 0.1_dp
-                    call root_calc(g, g_old, bi, a, s, eps)
-                    end do
+                    g = next_root(g_old, bi, a, s, eps)
                 case(2)
                     g = n*PI
                 case default
@@ -152,15 +137,15 @@ subroutine batch_particle(x, t, u, bi, a, s, eps)
         if (sqrt(maxval(abs(term))) < eps) exit
         end do
     return
-end subroutine batch_particle
+end function batch_particle
 
-subroutine batch_bulk(t, v, bi, a, s, eps)
+function batch_bulk(t, bi, a, s, eps) result(v)
     real(dp), intent(in) :: t(:) 
-    real(dp), intent(out) :: v(size(t))
     real(dp), intent(in) :: bi, a 
     integer, intent(in) :: s 
     real(dp), intent(in) :: eps 
-
+    
+    real(dp) :: v(size(t))
     real(dp) :: term(size(t))
     real(dp) :: g, g_old, cn, nu
     integer :: n
@@ -173,10 +158,8 @@ subroutine batch_bulk(t, v, bi, a, s, eps)
         v = 1.0_dp/(1.0_dp + a)
         do n = 1, 100
             g_old = g
-            do while(g_old >= g)
-                g_old = g + 0.1_dp 
-                call root_calc(g, g_old, bi, a, s, eps)
-            end do
+            g = next_root(g_old, bi, a, s, eps)
+
             if (bi == -1) then 
                 cn = 4*(nu+1)*a/(g**2 + 4*a*(1+a)*(nu+1)**2)
             else
@@ -191,29 +174,35 @@ subroutine batch_bulk(t, v, bi, a, s, eps)
     end if
 
     return
-end subroutine batch_bulk
+end function batch_bulk
 
-subroutine root_calc(g, g_old, bi, a, s, eps)
+real(dp) function next_root(g_old, bi, a, s, eps)
     real(dp), intent(in) :: bi, a, eps, g_old
     integer, intent(in) :: s
-    real(dp), intent(out) :: g
 
-    real(dp) :: del, b, c
-    ! Newton-Raphson Method
-    b = g_old
+    real(dp) :: del, b, b0, c, g
+    
+    b0 = g_old 
     do  
-        c = b + 0.01_dp
-        if (f(b, bi, a, s)*f(c, bi, a, s) < 0) exit
-        b = c
+        b0 = b0 + 0.1_dp
+        b = b0
+        do  
+            c = b + 0.01_dp
+            if (f(b, bi, a, s)*f(c, bi, a, s) < 0) exit
+            b = c
+        end do
+        g = c
+        do
+            ! Newton-Raphson Method
+            del = -f(g, bi, a, s)/df(g, bi, a, s)
+            g = g + del
+            if(abs(del) < eps) exit
+        end do
+        if(g-g_old > eps) exit
     end do
-    g = c
-    do
-        del = -f(g, bi, a, s)/df(g, bi, a, s)
-        g = g + del
-        if(abs(del) < eps) exit
-    end do
+    next_root = g
     return
-end subroutine root_calc
+end function next_root
 
 real(dp) function f(g, bi, a, s)
     real(dp), intent(in) :: bi, a, g
