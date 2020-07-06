@@ -58,9 +58,9 @@ function batch_particle_average(t, bi, a, s, eps) result(u)
             end select
 
             u = u + term
-            if (sqrt(maxval(abs(term))) < eps) exit
+            if (sqrt(norm2(term)) < eps .and. n>50) exit
         end do
-
+    return
 end function batch_particle_average
 
 function batch_particle(x, t, bi, a, s, eps) result(u)
@@ -123,8 +123,8 @@ function batch_particle(x, t, bi, a, s, eps) result(u)
                     case(2)
                         where(x/=0)
                             term = bn * sin(g*x)/(x*sin(g)) * exp(-g**2 * t(i))
-                        elsewhere (x==0)
-                            term = bn * sin(g*(x+1.0e-6_dp))/((1.0e-6_dp)*sin(g)) * exp(-g**2 * t(i))
+                        elsewhere
+                            term = bn * g/sin(g) * exp(-g**2 * t(i))
                         endwhere
                     case default
                         return
@@ -134,7 +134,7 @@ function batch_particle(x, t, bi, a, s, eps) result(u)
                 end if
             end do
 
-        if (sqrt(maxval(abs(term))) < eps) exit
+        if (sqrt(norm2(term)) < eps .and. n > 50) exit
         end do
     return
 end function batch_particle
@@ -169,10 +169,9 @@ function batch_bulk(t, bi, a, s, eps) result(v)
             
             term = cn * exp(-g**2 * t)
             v = v + term
-            if (maxval(abs(term)) < eps) exit
+            if (sqrt(norm2(term)) < eps .and. n > 50) exit
         end do
     end if
-
     return
 end function batch_bulk
 
