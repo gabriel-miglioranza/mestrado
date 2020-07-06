@@ -39,7 +39,7 @@ function batch_particle_average(t, bi, a, s, eps) result(u)
                 case(2)
                     g = n*PI
                 case default
-                return
+                    return
                 end select
                     bn = real(-2*((-1)**(s+1))**(n+1), dp)/g
             else
@@ -50,9 +50,9 @@ function batch_particle_average(t, bi, a, s, eps) result(u)
             case(0)
                 term = bn * tan(g)/g * exp(-g**2 * t)        
             case(1) 
-                term =  bn * 1.0_dp/g * bessel_j1(g)/bessel_j0(g) * exp(-g**2 * t)
+                term =  bn * bessel_j1(g)/(g*bessel_j0(g)) * exp(-g**2 * t)
             case(2)
-                term = bn * 1.0_dp/g * (1.0_dp/g - 1.0_dp/tan(g)) * exp(-g**2 * t)
+                term = bn * (1.0_dp/g**2 - 1.0_dp/(g*tan(g))) * exp(-g**2 * t)
             case default
                 return
             end select
@@ -212,7 +212,7 @@ real(dp) function f(g, bi, a, s)
         case(0)
             f = (1 - a*bi/g**2)*sin(g) - bi/g*cos(g)
         case(1)
-            f = (1 - 2.*a*bi/g**2)*bessel_j1(g) - bi/g*bessel_j0(g)
+            f = (1 - 2*a*bi/g**2)*bessel_j1(g) - bi/g*bessel_j0(g)
         case(2)
             f = (3*a*bi/g**3 + (bi-1)/g)*sin(g) + (1 - 3*a*bi/g**2)*cos(g)
         case default
@@ -224,9 +224,9 @@ real(dp) function f(g, bi, a, s)
         case(0)
             f = a/g*sin(g) + cos(g)
         case(1)
-            f = 2.*a*bessel_j1(g) + g*bessel_j0(g)
+            f = 2*a/g*bessel_j1(g) + bessel_j0(g)
         case(2)
-            f = 3*a*(cos(g)/g - sin(g)/g**2)
+            f = (1 + 3*a/g**2)*sin(g) - 3*a/g*cos(g)
         case default
             return
         end select
@@ -234,11 +234,11 @@ real(dp) function f(g, bi, a, s)
     else if (a==0) then        
         select case(s)
         case(0)
-            f = g*tan(g) - bi
+            f = sin(g) - bi/g * cos(g)
         case(1)
-            f = g*bessel_j1(g) - bi*bessel_j1(g)
+            f = bessel_j1(g) - bi/g*bessel_j0(g)
         case(2)
-            f = g + (bi + 1)*tan(g)
+            f = (bi - 1)/g*sin(g) + cos(g)
         case default
             return
         end select
@@ -270,11 +270,11 @@ real(dp) function df(g, bi, a, s)
     else if (bi == -1) then
         select case(s)
         case(0)
-            df = a/g*cos(g) - (1+a/g**2)*sin(g)
+            df = a/g*cos(g) - (1-a/g**2)*sin(g)
         case(1)
-            df = (2*a + 1)*bessel_j0(g) - (g**2 + 2*a)/g*bessel_j1(g)
+            df = 2*a/g*bessel_j0(g) - (1 + 4*a/g**2)*bessel_j1(g)
         case(2)
-            df = 3*a*(-2*cos(g)/g +(2/g**3 - 1/g)*sin(g))
+            df = (1 + 6*a/g**2)*cos(g) + (3*a/g-6*a/g**3)*sin(g)
         case default
             return
         end select
@@ -282,11 +282,11 @@ real(dp) function df(g, bi, a, s)
     else if (a==0) then        
         select case(s)
         case(0)
-            df = tan(g) + g/(cos(g)**2)
+            df = (1+bi/g**2)*cos(g) + bi/g*sin(g)
         case(1)
-            df = g*bessel_j0(g) + bi*bessel_j1(g)
+            df = (1 + bi/g**2)*bessel_j0(g) + (bi-1)/g*bessel_j1(g)
         case(2)
-            df = 1 + (bi - 1)/(sin(g)**2)
+            df = (bi - 1)/g*cos(g) + ((bi-1)/g - 1)*sin(g)
         case default
             return
         end select
