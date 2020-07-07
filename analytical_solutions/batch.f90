@@ -15,35 +15,23 @@ function batch_particle_average(t, bi, a, s, eps) result(u)
     real(dp) :: term(size(t))
     integer :: n
 
-        nu = real(s-1, dp)/2.0_dp
-        u = 1.0_dp/(1.0_dp + a)
-        g = 0
-        do n = 1, 100
+    nu = real(s-1, dp)/2.0_dp
+    u = 1.0_dp/(1.0_dp + a)
+    g = 0
+
+    do n = 1, 100
+        
+        if (bi>0 .or. a>0) then
             g_old = g
-            if (bi>0 .or. a>0) then
-                g = next_root(g_old, bi, a, s, eps)
-                if (a == 0) then
-                    bn = -2*bi/(g**2 + bi*(bi - 2*nu))
-                else if (bi == -1) then
-                    bn = 4*(nu+1)*a/(g**2 + 4*a*(1+a)*(1+nu)**2)
-                else if (a > 0 .and. bi > 0) then
-                    bn = 2*bi*(2*(nu+1)*a*bi - g**2)/(g**4 + g**2*bi*& 
+            g = next_root(g_old, bi, a, s, eps)
+            
+            if (a == 0) then
+                bn = -2*bi/(g**2 + bi*(bi - 2*nu))
+            else if (bi == -1) then
+                bn = 4*(nu+1)*a/(g**2 + 4*a*(1+a)*(1+nu)**2)
+            else if (a > 0 .and. bi > 0) then
+                bn = 2*bi*(2*(nu+1)*a*bi - g**2)/(g**4 + g**2*bi*& 
                 (bi-4*a*(nu+1) - 2*nu) + 4*a*(1 + a)*bi**2*(nu + 1)**2)
-                end if
-            else if (bi == -1 .and. a == 0) then
-                select case(s)
-                case(0)
-                    g = (2*n-1)*PI/2
-                case(1)
-                    g = next_root(g_old, bi, a, s, eps)
-                case(2)
-                    g = n*PI
-                case default
-                    return
-                end select
-                    bn = real(-2*((-1)**(s+1))**(n+1), dp)/g
-            else
-                return
             end if
 
             select case(s)
@@ -57,9 +45,39 @@ function batch_particle_average(t, bi, a, s, eps) result(u)
                 return
             end select
 
-            u = u + term
-            if (sqrt(norm2(term)) < eps .and. n>50) exit
-        end do
+        else if (bi == -1 .and. a == 0) then
+            select case(s)
+            case(0)
+                g = (2*n-1)*PI/2
+            case(1)
+                g = next_root(g_old, bi, a, s, eps)
+            case(2)
+                g = n*PI
+            case default
+                return
+            end select
+
+            bn = real(-2*((-1)**(s+1))**(n+1), dp)/g
+                
+            select case(s)
+            case(0)
+                term = bn * sin(g)/g * exp(-g**2 * t)        
+            case(1) 
+                term =  bn * bessel_j1(g)/(g) * exp(-g**2 * t)
+            case(2)
+                term = bn * (1.0_dp/g**2 - cos(g)/g )* exp(-g**2 * t)
+            case default
+                return
+            end select
+
+        else
+            return
+        end if
+
+        u = u + term
+        if (sqrt(norm2(term)) < eps .and. n>50) exit
+    end do
+    
     return
 end function batch_particle_average
 
@@ -76,38 +94,22 @@ function batch_particle(x, t, bi, a, s, eps) result(u)
     real(dp) :: term(size(x))
     integer :: n, i 
 
-        nu = real(s-1, dp)/2.0_dp
-        u = 1.0_dp/(1.0_dp + a)
-        g = 0
+    nu = real(s-1, dp)/2.0_dp
+    u = 1.0_dp/(1.0_dp + a)
+    g = 0
 
-        do n = 1, 100
+    do n = 1, 100
+        if (bi>0 .or. a>0) then
             g_old = g
-            if (bi>0 .or. a>0) then
-                g = next_root(g_old, bi, a, s, eps)
-                if (a == 0) then
-                    bn = -2*bi/(g**2 + bi*(bi - 2*nu))
-                else if (bi == -1) then
-                    bn = 4*(nu+1)*a/(g**2 + 4*a*(1+a)*(1+nu)**2)
-                else if (a > 0 .and. bi > 0) then
-                    bn = 2*bi*(2*(nu+1)*a*bi - g**2)/(g**4 + g**2*bi*& 
+            g = next_root(g_old, bi, a, s, eps)
+
+            if (a == 0) then
+                bn = -2*bi/(g**2 + bi*(bi - 2*nu))
+            else if (bi == -1) then
+                bn = 4*(nu+1)*a/(g**2 + 4*a*(1+a)*(1+nu)**2)
+            else if (a > 0 .and. bi > 0) then
+                bn = 2*bi*(2*(nu+1)*a*bi - g**2)/(g**4 + g**2*bi*& 
                     (bi-4*a*(nu+1) - 2*nu) + 4*a*(1 + a)*bi**2*(nu + 1)**2)
-                end if
-
-            else if (bi == -1 .and. a == 0) then
-                    select case(s)
-                case(0)
-                    g = (2*n-1)*PI/2
-                case(1)
-                    g = next_root(g_old, bi, a, s, eps)
-                case(2)
-                    g = n*PI
-                case default
-                return
-                end select
-
-                bn = real(-2*((-1)**(s+1))**(n+1), dp)/g
-            else
-                return
             end if
 
             do i = 1, size(t)
@@ -129,13 +131,55 @@ function batch_particle(x, t, bi, a, s, eps) result(u)
                     case default
                         return
                     end select
-
+    
                     u(:,i) = u(:,i) + term
                 end if
             end do
 
+        else if (bi == -1 .and. a == 0) then
+            select case(s)
+            case(0)
+                g = (2*n-1)*PI/2
+            case(1)
+                g = next_root(g_old, bi, a, s, eps)
+            case(2)
+                g = n*PI
+            case default
+            return
+            end select
+
+            bn = real(-2*((-1)**(s+1))**(n+1), dp)/g
+
+            do i = 1, size(t)
+                if (t(i)==0) then
+                    u(:,i) = 0
+                    term = 0
+                else
+                    select case(s)
+                    case(0)
+                        term = bn * cos(g*x)* exp(-g**2 * t(i))        
+                    case(1) 
+                        term =  bn * bessel_j0(g*x)/bessel_j1(g) * exp(-g**2 * t(i))
+                    case(2)
+                        where(x/=0)
+                            term = bn * sin(g*x)/x * exp(-g**2 * t(i))
+                        elsewhere
+                            term = bn * g * exp(-g**2 * t(i))
+                        endwhere
+                    case default
+                        return
+                    end select
+    
+                    u(:,i) = u(:,i) + term
+                end if
+            end do
+        else
+            return
+        end if
+
         if (sqrt(norm2(term)) < eps .and. n > 50) exit
-        end do
+    end do
+
     return
 end function batch_particle
 
@@ -156,6 +200,7 @@ function batch_bulk(t, bi, a, s, eps) result(v)
         nu = float(s-1)/2.0
         g = 0
         v = 1.0_dp/(1.0_dp + a)
+        
         do n = 1, 100
             g_old = g
             g = next_root(g_old, bi, a, s, eps)
@@ -172,6 +217,7 @@ function batch_bulk(t, bi, a, s, eps) result(v)
             if (sqrt(norm2(term)) < eps .and. n > 50) exit
         end do
     end if
+
     return
 end function batch_bulk
 
@@ -262,7 +308,7 @@ real(dp) function df(g, bi, a, s)
             df = (1-2*a*bi/g**2)*(bessel_j0(g)-bessel_j1(g)/g) + &
                 (4*a*bi/g**3 + bi/g)*bessel_j1(g) + bi/g**2 *bessel_j0(g)
         case(2)
-            df = (-9*a*bi/g**4 + (3*a*bi-bi+1)/g**2 - 1)*sin(g)+(9*a*bi/g**3 + (bi-1)/g)*cos(g)            
+            df = (-9*a*bi/g**4 + (3*a*bi-bi+1)/g**2 - 1)*sin(g)+(9*a*bi/g**3 + (bi-1)/g)*cos(g)
         case default
             return
         end select
