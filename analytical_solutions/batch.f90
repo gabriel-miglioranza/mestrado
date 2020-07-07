@@ -216,6 +216,7 @@ function batch_bulk(t, bi, a, s, eps) result(v)
             v = v + term
             if (sqrt(norm2(term)) < eps .and. n > 50) exit
         end do
+        where(t==0) v = 1
     end if
 
     return
