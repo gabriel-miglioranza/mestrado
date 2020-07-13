@@ -1,0 +1,66 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module batchpy ! in 
+    interface  ! in :batchpy
+        module batch ! in :batchpy:batch.f90
+            integer, parameter :: dp=kind(1.d0)
+            function batch_particle_average(t,bi,a,s,eps) result (u) ! in :batchpy:batch.f90:batch
+                integer, parameter :: dp=kind(1.d0)
+                real(kind=dp) dimension(:),intent(in) :: t
+                real(kind=dp) intent(in) :: bi
+                real(kind=dp) intent(in) :: a
+                integer intent(in) :: s
+                real(kind=dp) intent(in) :: eps
+                real(kind=dp) dimension(size(t)) :: u
+            end function batch_particle_average
+            function batch_particle(x,t,bi,a,s,eps) result (u) ! in :batchpy:batch.f90:batch
+                integer, parameter :: dp=kind(1.d0)
+                real(kind=dp) dimension(:),intent(in) :: x
+                real(kind=dp) dimension(:),intent(in) :: t
+                real(kind=dp) intent(in) :: bi
+                real(kind=dp) intent(in) :: a
+                integer intent(in) :: s
+                real(kind=dp) intent(in) :: eps
+                real(kind=dp) dimension(size(x),size(t)) :: u
+            end function batch_particle
+            function batch_bulk(t,bi,a,s,eps) result (v) ! in :batchpy:batch.f90:batch
+                integer, parameter :: dp=kind(1.d0)
+                real(kind=dp) dimension(:),intent(in) :: t
+                real(kind=dp) intent(in) :: bi
+                real(kind=dp) intent(in) :: a
+                integer intent(in) :: s
+                real(kind=dp) intent(in) :: eps
+                real(kind=dp) dimension(size(t)) :: v
+            end function batch_bulk
+            function next_root(g_old,bi,a,s,eps) ! in :batchpy:batch.f90:batch
+                integer, parameter :: dp=kind(1.d0)
+                real(kind=dp) intent(in) :: g_old
+                real(kind=dp) intent(in) :: bi
+                real(kind=dp) intent(in) :: a
+                integer intent(in) :: s
+                real(kind=dp) intent(in) :: eps
+                real(kind=dp) :: next_root
+            end function next_root
+            function f(g,bi,a,s) ! in :batchpy:batch.f90:batch
+                integer, parameter :: dp=kind(1.d0)
+                real(kind=dp) intent(in) :: g
+                real(kind=dp) intent(in) :: bi
+                real(kind=dp) intent(in) :: a
+                integer intent(in) :: s
+                real(kind=dp) :: f
+            end function f
+            function df(g,bi,a,s) ! in :batchpy:batch.f90:batch
+                integer, parameter :: dp=kind(1.d0)
+                real(kind=dp) intent(in) :: g
+                real(kind=dp) intent(in) :: bi
+                real(kind=dp) intent(in) :: a
+                integer intent(in) :: s
+                real(kind=dp) :: df
+            end function df
+        end module batch
+    end interface 
+end python module batchpy
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/
