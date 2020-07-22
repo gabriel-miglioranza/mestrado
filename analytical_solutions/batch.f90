@@ -77,7 +77,7 @@ function batch_particle_average(t, bi, a, s, eps) result(u)
         u = u + term
         if (sqrt(norm2(term)) < eps .and. n>50) exit
     end do
-    
+    where(t==0) u = 0 
     return
 end function batch_particle_average
 
@@ -86,7 +86,7 @@ function batch_particle(x, t, bi, a, s, eps) result(u)
     real(dp), intent(in) :: t (:)
     real(dp), intent(in) :: bi, a 
     integer, intent(in) :: s 
-    real(dp), intent(in) :: eps 
+    real(dp), intent(in) :: eps
     
     real(dp) :: u(size(x), size(t))
     real(dp), parameter :: PI = 4.0d0*atan(1.d0)
